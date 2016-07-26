@@ -149,6 +149,12 @@ public class SecureAccessibleKeyboard extends InputMethodService implements Keyb
      */
     public void onKey(int primaryCode, int[] keyCodes) {
         if (isWordSeparator(primaryCode)) {
+
+            // Update password text field when user presses the enter key
+            // if (primaryCode == '\n') {
+                // getCurrentInputConnection().commitText(mPassword,1);
+            // }
+
             // Handle separator
             if (mComposing.length() > 0) {
                 commitTyped(getCurrentInputConnection());
@@ -285,16 +291,18 @@ public class SecureAccessibleKeyboard extends InputMethodService implements Keyb
             }
         }
 
-        if (mCurrentVibration) {
-            mPassword = mPassword + (char) primaryCode;
+        if (mIsInputTypePassword) {
+
+            if (mCurrentVibration) {
+                // mPassword = mPassword + (char) primaryCode;
+                getCurrentInputConnection().commitText(
+                        String.valueOf((char) primaryCode), 1);
+            }
+
+            mCurrentVibration = generateRandomVibration();
         }
 
-
-        Random random = new Random();
-        mCurrentVibration = random.nextBoolean();
-        generateVibration();
-
-
+        /*
         // TODO: Remove prediction
         if (isAlphabet(primaryCode) && mPredictionOn) {
             mComposing.append((char) primaryCode);
@@ -303,17 +311,25 @@ public class SecureAccessibleKeyboard extends InputMethodService implements Keyb
         } else {
             getCurrentInputConnection().commitText(
                     String.valueOf((char) primaryCode), 1);
-        }
+        }*/
+    }
+
+    private boolean generateRandomVibration() {
+        Random random = new Random();
+        int randomInt = random.nextInt(3);
+        boolean vibration = randomInt < 2;
+        generateVibration(vibration);
+        return vibration;
     }
 
     /**
      * Generates
-     * 10 ms Vibration  if mCurrentVibration is false
-     * 500 ms Vibration if mCurrentVibration is true
+     * 10 ms Vibration  if vibration is false
+     * 500 ms Vibration if vibration is true
      */
-    private void generateVibration() {
+    private void generateVibration(boolean vibration) {
         Vibrator vibrator = (Vibrator) this.getApplicationContext().getSystemService(Context.VIBRATOR_SERVICE);
-        long vibrationDuration = mCurrentVibration ? TRUE_VIBRATION_DURATION : FAKE_VIBRATION_DURATION;
+        long vibrationDuration = vibration ? TRUE_VIBRATION_DURATION : FAKE_VIBRATION_DURATION;
         vibrator.vibrate(vibrationDuration);
     }
     /**
@@ -408,6 +424,11 @@ public class SecureAccessibleKeyboard extends InputMethodService implements Keyb
                 // user types).
                 mCurKeyboard = mQwertyKeyboard;
                 mPredictionOn = true;
+
+                // for now: Lets remove prediction and assume user is entering a
+                // password
+                mIsInputTypePassword = true;
+                mPredictionOn = false;
 
                 // We now look for a few special variations of text that will
                 // modify our behavior.
