@@ -65,6 +65,8 @@ public class SecureAccessibleKeyboard extends InputMethodService implements Keyb
 
     private boolean mIsInputTypePassword;
 
+    private boolean mIsInputTypeWebPassword;
+
     // false: fake character
     // true: genuine character
     private boolean mCurrentVibration;
@@ -291,8 +293,7 @@ public class SecureAccessibleKeyboard extends InputMethodService implements Keyb
             }
         }
 
-        if (mIsInputTypePassword) {
-
+        if (mIsInputTypeWebPassword) {
             if (mCurrentVibration) {
                 // mPassword = mPassword + (char) primaryCode;
                 getCurrentInputConnection().commitText(
@@ -300,18 +301,17 @@ public class SecureAccessibleKeyboard extends InputMethodService implements Keyb
             }
 
             mCurrentVibration = generateRandomVibration();
+        } else {
+            if (isAlphabet(primaryCode) && mPredictionOn) {
+                mComposing.append((char) primaryCode);
+                getCurrentInputConnection().setComposingText(mComposing, 1);
+                updateShiftKeyState(getCurrentInputEditorInfo());
+            } else {
+                getCurrentInputConnection().commitText(
+                        String.valueOf((char) primaryCode), 1);
+            }
         }
 
-        /*
-        // TODO: Remove prediction
-        if (isAlphabet(primaryCode) && mPredictionOn) {
-            mComposing.append((char) primaryCode);
-            getCurrentInputConnection().setComposingText(mComposing, 1);
-            updateShiftKeyState(getCurrentInputEditorInfo());
-        } else {
-            getCurrentInputConnection().commitText(
-                    String.valueOf((char) primaryCode), 1);
-        }*/
     }
 
     private boolean generateRandomVibration() {
@@ -425,14 +425,11 @@ public class SecureAccessibleKeyboard extends InputMethodService implements Keyb
                 mCurKeyboard = mQwertyKeyboard;
                 mPredictionOn = true;
 
-                // for now: Lets remove prediction and assume user is entering a
-                // password
-                mIsInputTypePassword = true;
-                mPredictionOn = false;
 
                 // We now look for a few special variations of text that will
                 // modify our behavior.
                 int variation = attribute.inputType & InputType.TYPE_MASK_VARIATION;
+
                 if (variation == InputType.TYPE_TEXT_VARIATION_PASSWORD ||
                         variation == InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD) {
                     // Do not display predictions / what the user is typing
@@ -446,6 +443,13 @@ public class SecureAccessibleKeyboard extends InputMethodService implements Keyb
                         || variation == InputType.TYPE_TEXT_VARIATION_FILTER) {
                     // Our predictions are not useful for e-mail addresses
                     // or URIs.
+                    mPredictionOn = false;
+                }
+
+                // Our keyboard provides visually impaired users a secure way of
+                // entering web passwords.
+                if (variation == InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD) {
+                    mIsInputTypeWebPassword = true;
                     mPredictionOn = false;
                 }
 
