@@ -5,6 +5,7 @@ import android.content.Context;
 import android.inputmethodservice.InputMethodService;
 import android.inputmethodservice.Keyboard;
 import android.inputmethodservice.KeyboardView;
+import android.os.Handler;
 import android.os.IBinder;
 import android.os.Vibrator;
 import android.text.InputType;
@@ -29,6 +30,8 @@ public class SecureAccessibleKeyboard extends InputMethodService implements Keyb
 
     private final int TRUE_VIBRATION_DURATION = 500;
     private final int FAKE_VIBRATION_DURATION = 10;
+    // private final int VIBRATION_DURATION = 500;
+    // private final int VIBRATION_DELAY = 500;
 
     static final boolean DEBUG = false;
 
@@ -62,8 +65,6 @@ public class SecureAccessibleKeyboard extends InputMethodService implements Keyb
     private LatinKeyboard mCurKeyboard;
 
     private String mWordSeparators;
-
-    private boolean mIsInputTypePassword;
 
     private boolean mIsInputTypeWebPassword;
 
@@ -311,21 +312,29 @@ public class SecureAccessibleKeyboard extends InputMethodService implements Keyb
                         String.valueOf((char) primaryCode), 1);
             }
         }
+    }
 
+    private void pauseUI(long milliSeconds) {
+        final Handler handler = new Handler();
+        handler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+            }
+        }, milliSeconds);
     }
 
     private boolean generateRandomVibration() {
         Random random = new Random();
         int randomInt = random.nextInt(3);
         boolean vibration = randomInt < 2;
+        // generateVibration(true);
+        // pauseUI(VIBRATION_DELAY);
         generateVibration(vibration);
         return vibration;
     }
 
     /**
-     * Generates
-     * 10 ms Vibration  if vibration is false
-     * 500 ms Vibration if vibration is true
+     * Generates a 10 ms Vibration
      */
     private void generateVibration(boolean vibration) {
         Vibrator vibrator = (Vibrator) this.getApplicationContext().getSystemService(Context.VIBRATOR_SERVICE);
@@ -434,7 +443,6 @@ public class SecureAccessibleKeyboard extends InputMethodService implements Keyb
                         variation == InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD) {
                     // Do not display predictions / what the user is typing
                     // when they are entering a password.
-                    mIsInputTypePassword = true;
                     mPredictionOn = false;
                 }
 

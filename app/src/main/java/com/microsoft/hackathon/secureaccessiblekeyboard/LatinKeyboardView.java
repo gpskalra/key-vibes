@@ -20,8 +20,17 @@ import android.content.Context;
 import android.inputmethodservice.Keyboard;
 import android.inputmethodservice.Keyboard.Key;
 import android.inputmethodservice.KeyboardView;
+import android.os.Bundle;
+import android.support.v4.view.ViewCompat;
+import android.support.v4.view.accessibility.AccessibilityNodeInfoCompat;
+import android.support.v4.widget.ExploreByTouchHelper;
 import android.util.AttributeSet;
+import android.view.MotionEvent;
+import android.view.View;
+import android.view.accessibility.AccessibilityEvent;
 import android.view.inputmethod.InputMethodSubtype;
+
+import java.util.List;
 
 public class LatinKeyboardView extends KeyboardView {
 
@@ -29,12 +38,17 @@ public class LatinKeyboardView extends KeyboardView {
     // TODO: Move this into android.inputmethodservice.Keyboard
     static final int KEYCODE_LANGUAGE_SWITCH = -101;
 
+    private CustomExploreByTouchHelper mHelper;
     public LatinKeyboardView(Context context, AttributeSet attrs) {
         super(context, attrs);
+        mHelper = new CustomExploreByTouchHelper(this);
+        ViewCompat.setAccessibilityDelegate(this, mHelper);
     }
 
     public LatinKeyboardView(Context context, AttributeSet attrs, int defStyle) {
         super(context, attrs, defStyle);
+        mHelper = new CustomExploreByTouchHelper(this);
+        ViewCompat.setAccessibilityDelegate(this, mHelper);
     }
 
     @Override
@@ -51,6 +65,43 @@ public class LatinKeyboardView extends KeyboardView {
         final LatinKeyboard keyboard = (LatinKeyboard)getKeyboard();
         keyboard.setSpaceIcon(getResources().getDrawable(subtype.getIconResId()));
         invalidateAllKeys();
+    }
+
+    private class CustomExploreByTouchHelper extends ExploreByTouchHelper {
+
+        public CustomExploreByTouchHelper(View forView) {
+            super(forView);
+        }
+
+        @Override
+        protected void getVisibleVirtualViews(List<Integer> virtualViewIds) {
+
+        }
+
+        @Override
+        protected void onPopulateEventForVirtualView(int virtualViewId, AccessibilityEvent event) {
+
+        }
+
+        @Override
+        protected int getVirtualViewAt(float x, float y) {
+            return 0;
+        }
+
+        @Override
+        protected void onPopulateNodeForVirtualView(int virtualViewId, AccessibilityNodeInfoCompat node) {
+
+        }
+
+        @Override
+        protected boolean onPerformActionForVirtualView(int virtualViewId, int action, Bundle arguments) {
+            return false;
+        }
+
+        /*@Override
+        public boolean dispatchHoverEvent(MotionEvent event) {
+            return super.dispatchHoverEvent(event);
+        }*/
     }
 }
 
