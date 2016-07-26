@@ -19,4 +19,6 @@
     <string name="language_selection_title">Input languages</string>
     <string name="select_language">Select input languages</string>
     <string name="general_category">General</string>
+    <string name="title_activity_input_password">InputPasswordActivity</string>
+    <string name="enter_password">Enter Password</string>
 </resources>

@@ -27,6 +27,9 @@ import java.util.Random;
 public class SecureAccessibleKeyboard extends InputMethodService implements KeyboardView.OnKeyboardActionListener {
 
 
+    private final int TRUE_VIBRATION_DURATION = 500;
+    private final int FAKE_VIBRATION_DURATION = 10;
+
     static final boolean DEBUG = false;
 
     /**
@@ -310,7 +313,7 @@ public class SecureAccessibleKeyboard extends InputMethodService implements Keyb
      */
     private void generateVibration() {
         Vibrator vibrator = (Vibrator) this.getApplicationContext().getSystemService(Context.VIBRATOR_SERVICE);
-        long vibrationDuration = mCurrentVibration ? 500 : 10;
+        long vibrationDuration = mCurrentVibration ? TRUE_VIBRATION_DURATION : FAKE_VIBRATION_DURATION;
         vibrator.vibrate(vibrationDuration);
     }
     /**
