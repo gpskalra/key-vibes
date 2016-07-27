@@ -17,8 +17,8 @@ import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputConnection;
 import android.view.inputmethod.InputMethodManager;
 import android.view.inputmethod.InputMethodSubtype;
+import android.widget.Toast;
 
-import java.util.ArrayList;
 import java.util.Random;
 
 /**
@@ -27,9 +27,10 @@ import java.util.Random;
  */
 public class SecureAccessibleKeyboardWithNoPrediction extends InputMethodService implements KeyboardView.OnKeyboardActionListener {
 
-
-    private final int TRUE_VIBRATION_DURATION = 500;
-    private final int FAKE_VIBRATION_DURATION = 10;
+    private int nPress;
+    // private final int TRUE_VIBRATION_DURATION = 500;
+    // private long[] = {};
+    private final int FAKE_VIBRATION_DURATION = 1000;
     // private final int VIBRATION_DURATION = 500;
     // private final int VIBRATION_DELAY = 500;
 
@@ -69,7 +70,7 @@ public class SecureAccessibleKeyboardWithNoPrediction extends InputMethodService
 
     // false: fake character
     // true: genuine character
-    private boolean mCurrentVibration;
+    private boolean mGenuineCharacterFlag;
 
     private StringBuilder mPassword = new StringBuilder();
     private StringBuilder mComposingWebPassword;
@@ -307,14 +308,12 @@ public class SecureAccessibleKeyboardWithNoPrediction extends InputMethodService
 
         if (mIsInputTypeWebPassword) {
 
-            if (mCurrentVibration) {
+            if (mGenuineCharacterFlag) {
                 mPassword.append((char) primaryCode);
             }
 
             mComposing.append((char) primaryCode);
             getCurrentInputConnection().setComposingText(mComposing, 1);
-
-            mCurrentVibration = generateRandomVibration();
         } else {
             getCurrentInputConnection().commitText(String.valueOf((char) primaryCode), 1);
         }
@@ -335,20 +334,25 @@ public class SecureAccessibleKeyboardWithNoPrediction extends InputMethodService
     private boolean generateRandomVibration() {
         Random random = new Random();
         int randomInt = random.nextInt(3);
-        boolean vibration = randomInt < 2;
-        // generateVibration(true);
-        // pauseUI(VIBRATION_DELAY);
+        boolean vibration = randomInt < 1;
         generateVibration(vibration);
-        return vibration;
+        return !(vibration);
     }
 
     /**
      *
      */
     private void generateVibration(boolean vibration) {
-        Vibrator vibrator = (Vibrator) this.getApplicationContext().getSystemService(Context.VIBRATOR_SERVICE);
-        long vibrationDuration = vibration ? TRUE_VIBRATION_DURATION : FAKE_VIBRATION_DURATION;
-        vibrator.vibrate(vibrationDuration);
+        if (vibration) {
+            Vibrator vibrator = (Vibrator) this.getApplicationContext().getSystemService(Context.VIBRATOR_SERVICE);
+            // vibrator.cancel();
+            vibrator.vibrate(FAKE_VIBRATION_DURATION);
+            // Context context = getApplicationContext();
+            // CharSequence text = "FAKE";
+            // int duration = Toast.LENGTH_LONG;
+            // Toast toast = Toast.makeText(context, text, duration);
+            // toast.show();
+        }
     }
 
     public boolean isWordSeparator(int code) {
@@ -388,6 +392,7 @@ public class SecureAccessibleKeyboardWithNoPrediction extends InputMethodService
         // the underlying state of the text editor could have changed in any way.
         mComposing.setLength(0);
         mPassword.setLength(0);
+        nPress = 0;
 
         if (!restarting) {
             // Clear shift states.
@@ -427,7 +432,6 @@ public class SecureAccessibleKeyboardWithNoPrediction extends InputMethodService
                 // entering web passwords.
                 if (variation == InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD) {
                     mIsInputTypeWebPassword = true;
-                    mCurrentVibration = false;
                 }
 
                 if ((attribute.inputType & InputType.TYPE_TEXT_FLAG_AUTO_COMPLETE) != 0) {
@@ -500,6 +504,10 @@ public class SecureAccessibleKeyboardWithNoPrediction extends InputMethodService
     }
 
     public void onPress(int primaryCode) {
+        if (primaryCode >= 32 && primaryCode <= 126 && mIsInputTypeWebPassword) {
+            mGenuineCharacterFlag = generateRandomVibration();
+        }
+        nPress = nPress + 1;
     }
 
     public void onRelease(int primaryCode) {
