@@ -25,7 +25,7 @@ import java.util.Random;
  * Custom keyboard that allows visually impaired users to enter
  * passwords
  */
-public class SecureAccessibleKeyboard extends InputMethodService implements KeyboardView.OnKeyboardActionListener {
+public class SecureAccessibleKeyboardWithNoPrediction extends InputMethodService implements KeyboardView.OnKeyboardActionListener {
 
 
     private final int TRUE_VIBRATION_DURATION = 500;
@@ -51,7 +51,6 @@ public class SecureAccessibleKeyboard extends InputMethodService implements Keyb
     private CompletionInfo[] mCompletions;
 
     private StringBuilder mComposing = new StringBuilder();
-    private boolean mPredictionOn;
     private boolean mCompletionOn;
     private int mLastDisplayWidth;
     private boolean mCapsLock;
@@ -72,7 +71,7 @@ public class SecureAccessibleKeyboard extends InputMethodService implements Keyb
     // true: genuine character
     private boolean mCurrentVibration;
 
-    private String mPassword;
+    private StringBuilder mPassword = new StringBuilder();
     private StringBuilder mComposingWebPassword;
 
     /**
@@ -101,10 +100,6 @@ public class SecureAccessibleKeyboard extends InputMethodService implements Keyb
         mQwertyKeyboard = new LatinKeyboard(this, R.xml.qwerty);
         mSymbolsKeyboard = new LatinKeyboard(this, R.xml.symbols);
         mSymbolsShiftedKeyboard = new LatinKeyboard(this, R.xml.symbols_shift);
-        mCurrentVibration = false;
-        mPassword = "";
-        mComposingWebPassword = new StringBuilder();
-        mIsInputTypeWebPassword = false;
     }
 
     /**
@@ -155,19 +150,19 @@ public class SecureAccessibleKeyboard extends InputMethodService implements Keyb
      */
     public void onKey(int primaryCode, int[] keyCodes) {
 
-        if (isWordSeparator(primaryCode)) {
-
-            // Update password text field when user presses the enter key
-            if (mIsInputTypeWebPassword && (primaryCode == '\n')) {
-                getCurrentInputConnection().commitText(mPassword, mPassword.length());
-            } else {
-                // Handle separator
+        // if (isWordSeparator(primaryCode)) {
+        if (primaryCode == '\n') {
+        // Update password text field when user presses the enter key
+            if (mIsInputTypeWebPassword) {
+            getCurrentInputConnection().commitText(mPassword, mPassword.length());
+            }
+            /*else {
                 if (mComposing.length() > 0) {
                     commitTyped(getCurrentInputConnection());
                 }
-            }
-            sendKey(primaryCode);
-            updateShiftKeyState(getCurrentInputEditorInfo());
+            }*/
+        sendKey(primaryCode);
+        updateShiftKeyState(getCurrentInputEditorInfo());
         } else if (primaryCode == Keyboard.KEYCODE_DELETE) {
             handleBackspace();
         } else if (primaryCode == Keyboard.KEYCODE_SHIFT) {
@@ -245,18 +240,30 @@ public class SecureAccessibleKeyboard extends InputMethodService implements Keyb
     }
 
     private void handleBackspace() {
-        final int length = mComposing.length();
-        if (length > 1) {
-            mComposing.delete(length - 1, length);
-            getCurrentInputConnection().setComposingText(mComposing, 1);
-            // updateCandidates();
-        } else if (length > 0) {
-            mComposing.setLength(0);
-            getCurrentInputConnection().commitText("", 0);
-            // updateCandidates();
+
+        if (mIsInputTypeWebPassword) {
+            final int passwordLength = mPassword.length();
+            if (passwordLength > 0) {
+                mPassword.delete(passwordLength - 1, passwordLength);
+            }
+            final int length = mComposing.length();
+            if (length > 1) {
+                mComposing.delete(length - 1, length);
+                getCurrentInputConnection().setComposingText(mComposing, 1);
+            } else if (length > 0) {
+                mComposing.setLength(0);
+                getCurrentInputConnection().commitText("", 0);
+                // updateCandidates();
+            } else {
+                keyDownUp(KeyEvent.KEYCODE_DEL);
+            }
         } else {
-            keyDownUp(KeyEvent.KEYCODE_DEL);
+            getCurrentInputConnection().deleteSurroundingText(1, 0);
         }
+
+
+
+
         updateShiftKeyState(getCurrentInputEditorInfo());
     }
 
@@ -299,23 +306,21 @@ public class SecureAccessibleKeyboard extends InputMethodService implements Keyb
         }
 
         if (mIsInputTypeWebPassword) {
+
             if (mCurrentVibration) {
-                mPassword = mPassword + (char) primaryCode;
-                // getCurrentInputConnection().commitText(String.valueOf((char) primaryCode), 1);
+                mPassword.append((char) primaryCode);
             }
-            mComposingWebPassword.append((char) primaryCode);
-            getCurrentInputConnection().setComposingText(mComposingWebPassword, 1);
+
+            mComposing.append((char) primaryCode);
+            getCurrentInputConnection().setComposingText(mComposing, 1);
+
             mCurrentVibration = generateRandomVibration();
         } else {
-            if (isAlphabet(primaryCode) && mPredictionOn) {
-                mComposing.append((char) primaryCode);
-                getCurrentInputConnection().setComposingText(mComposing, 1);
-                updateShiftKeyState(getCurrentInputEditorInfo());
-            } else {
-                getCurrentInputConnection().commitText(
-                        String.valueOf((char) primaryCode), 1);
-            }
+            getCurrentInputConnection().commitText(String.valueOf((char) primaryCode), 1);
         }
+        // mComposing.append((char) primaryCode);
+        // getCurrentInputConnection().setComposingText(mComposing, 1);
+
     }
 
     private void pauseUI(long milliSeconds) {
@@ -345,16 +350,6 @@ public class SecureAccessibleKeyboard extends InputMethodService implements Keyb
         long vibrationDuration = vibration ? TRUE_VIBRATION_DURATION : FAKE_VIBRATION_DURATION;
         vibrator.vibrate(vibrationDuration);
     }
-    /**
-     * Helper to determine if a given character code is alphabetic.
-     */
-    private boolean isAlphabet(int code) {
-        if (Character.isLetter(code)) {
-            return true;
-        } else {
-            return false;
-        }
-    }
 
     public boolean isWordSeparator(int code) {
         String separators = getWordSeparators();
@@ -372,7 +367,6 @@ public class SecureAccessibleKeyboard extends InputMethodService implements Keyb
         if (mComposing.length() > 0) {
             inputConnection.commitText(mComposing, mComposing.length());
             mComposing.setLength(0);
-            // updateCandidates();
         }
     }
 
@@ -382,44 +376,28 @@ public class SecureAccessibleKeyboard extends InputMethodService implements Keyb
      * @param restarting
      */
     @Override public void onStartInputView(EditorInfo attribute, boolean restarting) {
-        super.onStartInputView(attribute, restarting);
-        // Apply the selected keyboard to the input view.
-        setLatinKeyboard(mCurKeyboard);
-        mInputView.closing();
-        final InputMethodSubtype subtype = mInputMethodManager.getCurrentInputMethodSubtype();
-        mInputView.setSubtypeOnSpaceKey(subtype);
-    }
 
-    /**
-     * This is the main point where we do our initialization of the input method
-     * to begin operating on an application.  At this point we have been
-     * bound to the client, and are now receiving all of the detailed information
-     * about the target of our edits.
-     */
-    @Override public void onStartInput(EditorInfo attribute, boolean restarting) {
-        super.onStartInput(attribute, restarting);
+        super.onStartInputView(attribute, restarting);
+
+        // Moving all the below code from onStartInput to here
+
+        // We are now going to initialize our state based on the type of
+        // text being edited.
 
         // Reset our state.  We want to do this even if restarting, because
         // the underlying state of the text editor could have changed in any way.
         mComposing.setLength(0);
-        // We dont have a candidate view. Hence, we dont call this.
-        // updateCandidates();
-
-        // For the special case when visually impaired users enter a password, we need to
-        // compose differently.
-        mComposingWebPassword.setLength(0);
+        mPassword.setLength(0);
 
         if (!restarting) {
             // Clear shift states.
             mMetaState = 0;
         }
 
-        mPredictionOn = false;
         mCompletionOn = false;
+        mIsInputTypeWebPassword = false;
         mCompletions = null;
 
-        // We are now going to initialize our state based on the type of
-        // text being edited.
         switch (attribute.inputType & InputType.TYPE_MASK_CLASS) {
             case InputType.TYPE_CLASS_NUMBER:
             case InputType.TYPE_CLASS_DATETIME:
@@ -440,42 +418,22 @@ public class SecureAccessibleKeyboard extends InputMethodService implements Keyb
                 // be doing predictive text (showing candidates as the
                 // user types).
                 mCurKeyboard = mQwertyKeyboard;
-                mPredictionOn = true;
-
 
                 // We now look for a few special variations of text that will
                 // modify our behavior.
                 int variation = attribute.inputType & InputType.TYPE_MASK_VARIATION;
 
-                if (variation == InputType.TYPE_TEXT_VARIATION_PASSWORD ||
-                        variation == InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD) {
-                    // Do not display predictions / what the user is typing
-                    // when they are entering a password.
-                    mPredictionOn = false;
-                }
-
-                if (variation == InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS
-                        || variation == InputType.TYPE_TEXT_VARIATION_URI
-                        || variation == InputType.TYPE_TEXT_VARIATION_FILTER) {
-                    // Our predictions are not useful for e-mail addresses
-                    // or URIs.
-                    mPredictionOn = false;
-                }
-
                 // Our keyboard provides visually impaired users a secure way of
                 // entering web passwords.
                 if (variation == InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD) {
                     mIsInputTypeWebPassword = true;
-                    mPredictionOn = false;
+                    mCurrentVibration = false;
                 }
 
                 if ((attribute.inputType & InputType.TYPE_TEXT_FLAG_AUTO_COMPLETE) != 0) {
-                    // If this is an auto-complete text view, then our predictions
-                    // will not be shown and instead we will allow the editor
-                    // to supply their own.  We only show the editor's
+                    // We only show the editor's
                     // candidates when in fullscreen mode, otherwise relying
                     // own it displaying its own UI.
-                    mPredictionOn = false;
                     mCompletionOn = isFullscreenMode();
                 }
 
@@ -495,6 +453,22 @@ public class SecureAccessibleKeyboard extends InputMethodService implements Keyb
         // Update the label on the enter key, depending on what the application
         // says it will do.
         // mCurKeyboard.setImeOptions(getResources(), attribute.imeOptions);
+
+        // Apply the selected keyboard to the input view.
+        setLatinKeyboard(mCurKeyboard);
+        mInputView.closing();
+        final InputMethodSubtype subtype = mInputMethodManager.getCurrentInputMethodSubtype();
+        mInputView.setSubtypeOnSpaceKey(subtype);
+    }
+
+    /**
+     * This is the main point where we do our initialization of the input method
+     * to begin operating on an application.  At this point we have been
+     * bound to the client, and are now receiving all of the detailed information
+     * about the target of our edits.
+     */
+    @Override public void onStartInput(EditorInfo attribute, boolean restarting) {
+        super.onStartInput(attribute, restarting);
     }
 
     /**

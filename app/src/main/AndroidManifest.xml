@@ -11,7 +11,7 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme" >
         <service
-            android:name=".SecureAccessibleKeyboard"
+            android:name=".SecureAccessibleKeyboardWithNoPrediction"
             android:permission="android.permission.BIND_INPUT_METHOD" >
             <intent-filter>
                 <action android:name="android.view.InputMethod" />
