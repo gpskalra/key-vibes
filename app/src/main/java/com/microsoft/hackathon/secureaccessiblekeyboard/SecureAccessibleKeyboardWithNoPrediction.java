@@ -11,7 +11,9 @@ import android.os.Vibrator;
 import android.text.InputType;
 import android.view.KeyEvent;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.Window;
+import android.view.accessibility.AccessibilityEvent;
 import android.view.inputmethod.CompletionInfo;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputConnection;
@@ -34,6 +36,8 @@ public class SecureAccessibleKeyboardWithNoPrediction extends InputMethodService
     // private final int VIBRATION_DELAY = 500;
 
     static final boolean DEBUG = false;
+
+    private int mNumberOfGenuineCharacters;
 
     /**
      * This boolean indicates the optional example code for performing
@@ -154,7 +158,14 @@ public class SecureAccessibleKeyboardWithNoPrediction extends InputMethodService
         if (primaryCode == '\n') {
         // Update password text field when user presses the enter key
             if (mIsInputTypeWebPassword) {
-            getCurrentInputConnection().commitText(mPassword, mPassword.length());
+                AccessibilityEvent accessibilityEvent = AccessibilityEvent.obtain(AccessibilityEvent.TYPE_ANNOUNCEMENT);
+                String text = "Your Password has been submitted successfully ...";
+                accessibilityEvent.getText().add(text);
+                mInputView.onInitializeAccessibilityEvent(accessibilityEvent);
+                ViewGroup group = (ViewGroup) mInputView.getParent();
+                group.requestSendAccessibilityEvent(mInputView, accessibilityEvent);
+                getCurrentInputConnection().commitText(mPassword, mPassword.length());
+
             }
             /*else {
                 if (mComposing.length() > 0) {
@@ -245,11 +256,14 @@ public class SecureAccessibleKeyboardWithNoPrediction extends InputMethodService
             final int passwordLength = mPassword.length();
             if (passwordLength > 0) {
                 mPassword.delete(passwordLength - 1, passwordLength);
-                Context context = getApplicationContext();
+                /*Context context = getApplicationContext();
                 CharSequence text = "Deleted from Password";
                 int duration = Toast.LENGTH_SHORT;
                 Toast toast = Toast.makeText(context, text, duration);
-                toast.show();
+                toast.show();*/
+            }
+            if(passwordLength == 0){
+                mGenuineCharacterFlag = true;
             }
             final int length = mComposing.length();
             if (length > 1) {
@@ -263,6 +277,7 @@ public class SecureAccessibleKeyboardWithNoPrediction extends InputMethodService
                 keyDownUp(KeyEvent.KEYCODE_DEL);
             }
         } else {
+            InputConnection ic = getCurrentInputConnection();
             getCurrentInputConnection().deleteSurroundingText(1, 0);
         }
 
@@ -313,12 +328,13 @@ public class SecureAccessibleKeyboardWithNoPrediction extends InputMethodService
         if (mIsInputTypeWebPassword) {
 
             if (mGenuineCharacterFlag) {
+                mNumberOfGenuineCharacters = mNumberOfGenuineCharacters + 1;
                 mPassword.append((char) primaryCode);
-                Context context = getApplicationContext();
+                /*Context context = getApplicationContext();
                 CharSequence text = "Appended to Password";
                 int duration = Toast.LENGTH_SHORT;
                 Toast toast = Toast.makeText(context, text, duration);
-                toast.show();
+                toast.show();*/
             }
 
             mComposing.append((char) primaryCode);
@@ -343,13 +359,19 @@ public class SecureAccessibleKeyboardWithNoPrediction extends InputMethodService
     }
 
     private boolean generateRandomVibration() {
-        Random random = new Random();
-        int randomInt = random.nextInt(3);
-        boolean vibration = randomInt < 1;
-        // generateVibration(true);
-        // pauseUI(VIBRATION_DELAY);
-        generateVibration(vibration);
-        return !(vibration);
+        if (mNumberOfGenuineCharacters > 3) {
+            generateVibration(true);
+            return false;
+        }
+        else {
+            Random random = new Random();
+            int randomInt = random.nextInt(3);
+            boolean vibration = randomInt < 1;
+            // generateVibration(true);
+            // pauseUI(VIBRATION_DELAY);
+            generateVibration(vibration);
+            return !(vibration);
+        }
     }
 
     /**
@@ -358,6 +380,7 @@ public class SecureAccessibleKeyboardWithNoPrediction extends InputMethodService
     private void generateVibration(boolean vibration) {
         Vibrator vibrator = (Vibrator) this.getApplicationContext().getSystemService(Context.VIBRATOR_SERVICE);
         if (vibration) {
+            mNumberOfGenuineCharacters = 0;
             vibrator.vibrate(FAKE_VIBRATION_DURATION);
         }
 
@@ -440,6 +463,7 @@ public class SecureAccessibleKeyboardWithNoPrediction extends InputMethodService
                 if (variation == InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD) {
                     mIsInputTypeWebPassword = true;
                     mGenuineCharacterFlag = true;
+                    mNumberOfGenuineCharacters = 0;
                 }
 
                 if ((attribute.inputType & InputType.TYPE_TEXT_FLAG_AUTO_COMPLETE) != 0) {
