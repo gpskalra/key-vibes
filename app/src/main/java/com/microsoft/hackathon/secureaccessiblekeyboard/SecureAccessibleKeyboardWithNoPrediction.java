@@ -17,8 +17,8 @@ import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputConnection;
 import android.view.inputmethod.InputMethodManager;
 import android.view.inputmethod.InputMethodSubtype;
+import android.widget.Toast;
 
-import java.util.ArrayList;
 import java.util.Random;
 
 /**
@@ -28,8 +28,8 @@ import java.util.Random;
 public class SecureAccessibleKeyboardWithNoPrediction extends InputMethodService implements KeyboardView.OnKeyboardActionListener {
 
 
-    private final int TRUE_VIBRATION_DURATION = 500;
-    private final int FAKE_VIBRATION_DURATION = 10;
+    // private final int TRUE_VIBRATION_DURATION = ;
+    private final int FAKE_VIBRATION_DURATION = 500;
     // private final int VIBRATION_DURATION = 500;
     // private final int VIBRATION_DELAY = 500;
 
@@ -69,7 +69,7 @@ public class SecureAccessibleKeyboardWithNoPrediction extends InputMethodService
 
     // false: fake character
     // true: genuine character
-    private boolean mCurrentVibration;
+    private boolean mGenuineCharacterFlag;
 
     private StringBuilder mPassword = new StringBuilder();
     private StringBuilder mComposingWebPassword;
@@ -245,6 +245,11 @@ public class SecureAccessibleKeyboardWithNoPrediction extends InputMethodService
             final int passwordLength = mPassword.length();
             if (passwordLength > 0) {
                 mPassword.delete(passwordLength - 1, passwordLength);
+                Context context = getApplicationContext();
+                CharSequence text = "Deleted from Password";
+                int duration = Toast.LENGTH_SHORT;
+                Toast toast = Toast.makeText(context, text, duration);
+                toast.show();
             }
             final int length = mComposing.length();
             if (length > 1) {
@@ -307,14 +312,19 @@ public class SecureAccessibleKeyboardWithNoPrediction extends InputMethodService
 
         if (mIsInputTypeWebPassword) {
 
-            if (mCurrentVibration) {
+            if (mGenuineCharacterFlag) {
                 mPassword.append((char) primaryCode);
+                Context context = getApplicationContext();
+                CharSequence text = "Appended to Password";
+                int duration = Toast.LENGTH_SHORT;
+                Toast toast = Toast.makeText(context, text, duration);
+                toast.show();
             }
 
             mComposing.append((char) primaryCode);
             getCurrentInputConnection().setComposingText(mComposing, 1);
 
-            mCurrentVibration = generateRandomVibration();
+            mGenuineCharacterFlag = generateRandomVibration();
         } else {
             getCurrentInputConnection().commitText(String.valueOf((char) primaryCode), 1);
         }
@@ -335,11 +345,11 @@ public class SecureAccessibleKeyboardWithNoPrediction extends InputMethodService
     private boolean generateRandomVibration() {
         Random random = new Random();
         int randomInt = random.nextInt(3);
-        boolean vibration = randomInt < 2;
+        boolean vibration = randomInt < 1;
         // generateVibration(true);
         // pauseUI(VIBRATION_DELAY);
         generateVibration(vibration);
-        return vibration;
+        return !(vibration);
     }
 
     /**
@@ -347,8 +357,10 @@ public class SecureAccessibleKeyboardWithNoPrediction extends InputMethodService
      */
     private void generateVibration(boolean vibration) {
         Vibrator vibrator = (Vibrator) this.getApplicationContext().getSystemService(Context.VIBRATOR_SERVICE);
-        long vibrationDuration = vibration ? TRUE_VIBRATION_DURATION : FAKE_VIBRATION_DURATION;
-        vibrator.vibrate(vibrationDuration);
+        if (vibration) {
+            vibrator.vibrate(FAKE_VIBRATION_DURATION);
+        }
+
     }
 
     public boolean isWordSeparator(int code) {
@@ -427,7 +439,7 @@ public class SecureAccessibleKeyboardWithNoPrediction extends InputMethodService
                 // entering web passwords.
                 if (variation == InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD) {
                     mIsInputTypeWebPassword = true;
-                    mCurrentVibration = false;
+                    mGenuineCharacterFlag = true;
                 }
 
                 if ((attribute.inputType & InputType.TYPE_TEXT_FLAG_AUTO_COMPLETE) != 0) {
